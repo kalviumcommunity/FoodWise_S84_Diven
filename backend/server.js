@@ -33,6 +33,12 @@ const ZERO_SHOT_EXAMPLES = {
   "diet_recommendation": "Recommend diet changes based on health goals"
 };
 
+// Root route (fixes 404 on Render base URL)
+app.get("/", (req, res) => {
+  res.send("✅ FoodWise backend is running! Use /api/* endpoints.");
+});
+
+
 // Function calling structure (Function calling concept)
 const AVAILABLE_FUNCTIONS = {
   "compareFoods": {
