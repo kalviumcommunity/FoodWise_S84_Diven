@@ -1,268 +1,79 @@
-import React, { useState } from 'react'
-import { Send, Bot, User, Settings, Sparkles } from 'lucide-react'
-import axios from 'axios'
+// src/components/ChatInterface.jsx
+import { useState } from "react";
+import axios from "axios";
 
-function ChatInterface() {
-  const [input, setInput] = useState('')
-  const [messages, setMessages] = useState([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [aiParams, setAiParams] = useState({
-    temperature: 0.7,
-    top_p: 0.9,
-    max_tokens: 1000
-  })
-  const [showParams, setShowParams] = useState(false)
+const API_URL = import.meta.env.VITE_BACKEND_URL; // <-- use env variable
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!input.trim() || isLoading) return
+export default function ChatInterface() {
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-    const userMessage = {
-      id: Date.now(),
-      type: 'user',
-      text: input,
-      timestamp: new Date().toISOString()
-    }
+  const handleSend = async () => {
+    if (!input.trim()) return;
 
-    setMessages(prev => [...prev, userMessage])
-    setInput('')
-    setIsLoading(true)
+    const newMessage = { role: "user", content: input };
+    setMessages((prev) => [...prev, newMessage]);
+
+    setLoading(true);
+    setError(null);
 
     try {
-      const response = await axios.post('/api/generate', {
-        contents: [
-          {
-            parts: [
-              {
-                text: input
-              }
-            ]
-          }
-        ],
-        ...aiParams
-      })
+      const res = await axios.post(`${API_URL}/chat`, {
+        message: input,
+      });
 
-      const aiMessage = {
-        id: Date.now() + 1,
-        type: 'ai',
-        text: response.data,
-        timestamp: new Date().toISOString()
-      }
-
-      setMessages(prev => [...prev, aiMessage])
-    } catch (error) {
-      const errorMessage = {
-        id: Date.now() + 1,
-        type: 'error',
-        text: 'Sorry, something went wrong. Please try again.',
-        timestamp: new Date().toISOString()
-      }
-      setMessages(prev => [...prev, errorMessage])
+      const botMessage = { role: "bot", content: res.data.reply };
+      setMessages((prev) => [...prev, botMessage]);
+    } catch (err) {
+      setError("Error connecting to server.");
     } finally {
-      setIsLoading(false)
+      setLoading(false);
+      setInput("");
     }
-  }
-
-  const quickPrompts = [
-    "Compare banana vs apple for diabetic diet",
-    "Analyze my breakfast: oatmeal with berries",
-    "Recommend a meal plan for weight loss",
-    "What's the difference between white and brown rice?"
-  ]
-
-  const handleQuickPrompt = (prompt) => {
-    setInput(prompt)
-  }
+  };
 
   return (
-    <div className="space-y-6">
-      {/* AI Parameters Panel */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-            <Settings size={20} className="text-primary-600" />
-            AI Parameters
-          </h2>
-          <button
-            onClick={() => setShowParams(!showParams)}
-            className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-          >
-            {showParams ? 'Hide' : 'Show'} Parameters
-          </button>
-        </div>
+    <div className="max-w-2xl mx-auto mt-8 p-4 bg-white rounded-xl shadow-lg">
+      <h2 className="text-2xl font-bold mb-4 text-center">🍽️ FoodWise Chat</h2>
 
-        {showParams && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Temperature: {aiParams.temperature}
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={aiParams.temperature}
-                onChange={(e) => setAiParams(prev => ({ ...prev, temperature: parseFloat(e.target.value) }))}
-                className="w-full"
-              />
-              <p className="text-xs text-gray-500 mt-1">Controls randomness (0 = focused, 1 = creative)</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Top-P: {aiParams.top_p}
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={aiParams.top_p}
-                onChange={(e) => setAiParams(prev => ({ ...prev, top_p: parseFloat(e.target.value) }))}
-                className="w-full"
-              />
-              <p className="text-xs text-gray-500 mt-1">Nucleus sampling parameter</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Max Tokens: {aiParams.max_tokens}
-              </label>
-              <input
-                type="range"
-                min="100"
-                max="2000"
-                step="100"
-                value={aiParams.max_tokens}
-                onChange={(e) => setAiParams(prev => ({ ...prev, max_tokens: parseInt(e.target.value) }))}
-                className="w-full"
-              />
-              <p className="text-xs text-gray-500 mt-1">Maximum response length</p>
-            </div>
+      <div className="h-96 overflow-y-auto border p-3 rounded-md bg-gray-50">
+        {messages.map((msg, idx) => (
+          <div
+            key={idx}
+            className={`my-2 p-2 rounded-md ${
+              msg.role === "user"
+                ? "bg-blue-100 text-right"
+                : "bg-green-100 text-left"
+            }`}
+          >
+            <span className="font-semibold">
+              {msg.role === "user" ? "You: " : "FoodWise: "}
+            </span>
+            {msg.content}
           </div>
-        )}
+        ))}
+        {loading && <div className="text-gray-500 italic">Thinking...</div>}
+        {error && <div className="text-red-500 text-sm">{error}</div>}
       </div>
 
-      {/* Quick Prompts */}
-      <div className="card">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <Sparkles size={18} className="text-primary-600" />
-          Quick Prompts (Zero-shot Examples)
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {quickPrompts.map((prompt, index) => (
-            <button
-              key={index}
-              onClick={() => handleQuickPrompt(prompt)}
-              className="text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors text-sm text-gray-700"
-            >
-              {prompt}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Chat Interface */}
-      <div className="card">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">AI Chat Interface</h3>
-        
-        {/* Messages */}
-        <div className="space-y-4 mb-4 max-h-96 overflow-y-auto">
-          {messages.length === 0 && (
-            <div className="text-center text-gray-500 py-8">
-              <Bot size={48} className="mx-auto mb-2 text-gray-300" />
-              <p>Start a conversation with your AI nutritionist!</p>
-            </div>
-          )}
-          
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex gap-3 ${
-                message.type === 'user' ? 'justify-end' : 'justify-start'
-              }`}
-            >
-              {message.type === 'ai' && (
-                <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                  <Bot size={16} className="text-primary-600" />
-                </div>
-              )}
-              
-              <div
-                className={`max-w-xs lg:max-w-md p-3 rounded-lg ${
-                  message.type === 'user'
-                    ? 'bg-primary-600 text-white'
-                    : message.type === 'error'
-                    ? 'bg-red-100 text-red-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}
-              >
-                {message.type === 'ai' ? (
-                  <div className="space-y-2">
-                    <div className="text-sm">
-                      <strong>Input:</strong> {message.text.input}
-                    </div>
-                    <div className="text-sm">
-                      <strong>Zero-shot Type:</strong> {message.text.zero_shot_response.type}
-                    </div>
-                    <div className="text-sm">
-                      <strong>Confidence:</strong> {(message.text.zero_shot_response.confidence * 100).toFixed(0)}%
-                    </div>
-                    {message.text.detected_function && (
-                      <div className="text-sm">
-                        <strong>Function:</strong> {message.text.detected_function.function_name}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p>{message.text}</p>
-                )}
-              </div>
-              
-              {message.type === 'user' && (
-                <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
-                  <User size={16} className="text-white" />
-                </div>
-              )}
-            </div>
-          ))}
-          
-          {isLoading && (
-            <div className="flex gap-3 justify-start">
-              <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                <Bot size={16} className="text-primary-600" />
-              </div>
-              <div className="bg-gray-100 p-3 rounded-lg">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Input Form */}
-        <form onSubmit={handleSubmit} className="flex gap-3">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask your AI nutritionist anything..."
-            className="input-field flex-1"
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Send size={18} />
-          </button>
-        </form>
+      <div className="flex mt-4 gap-2">
+        <input
+          type="text"
+          className="flex-1 border rounded-md p-2"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask me about food, diet, or nutrition..."
+        />
+        <button
+          onClick={handleSend}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          disabled={loading}
+        >
+          {loading ? "Sending..." : "Send"}
+        </button>
       </div>
     </div>
-  )
+  );
 }
-
-export default ChatInterface
